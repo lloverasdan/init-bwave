@@ -1,8 +1,7 @@
-# Procedure for running idealized baroclinic-wave simulations in WRF
-## Methodology from Lloveras and Durran (2023)
+# Procedure for running idealized baroclinic-wave simulations in WRF using the methodology from Lloveras and Durran (2023)
 
 ### Step 1 - Download and compile the numerical model:
-⋅⋅* WRF version 3.6.1: https://www2.mmm.ucar.edu/wrf/users/download/get_sources.html
+* WRF version 3.6.1: https://www2.mmm.ucar.edu/wrf/users/download/get_sources.html
 
 ### Step 2 - Zonally uniform jet:
 ⋅⋅* Run "make_jet.py" with parameter options at beginning of script
