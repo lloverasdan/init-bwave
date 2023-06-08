@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Apr  1 09:38:33 2020
-
-@author: Daniel Lloveras
-
-Defines functions for inverting a 2D EPV distribution
+Written by Daniel J. Lloveras
 """
 
 import numpy as np
