@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
-Created on Thu Apr  2 10:40:27 2020
-
-@author: Daniel Lloveras
-
-Defines functions for inverting a 3D QGPV anomaly to trigger baroclinic growth
+Written by Daniel J. Lloveras
 """
 import numpy as np
 from numba import njit
