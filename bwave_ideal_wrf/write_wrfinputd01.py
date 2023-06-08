@@ -8,7 +8,6 @@ Written by Daniel J. Lloveras
 import numpy as np
 
 #%% Constants
-
 RD = 287
 FF = 1e-4
 
