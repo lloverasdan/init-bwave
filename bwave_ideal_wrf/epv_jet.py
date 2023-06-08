@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
 Written by Daniel J. Lloveras
 """
 
 import numpy as np
 from numba import njit
-from scipy.interpolate import interp1d
 
 #%% Constants
 
