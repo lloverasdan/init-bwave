@@ -1,12 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+
 """
-Created on Wed Oct 16 13:49:29 2019
-
-@author: Daniel Lloveras
-
-Defines the function for writing the wrfinput_d01 netCDF file to be used by
-WRF at runtime
+Written by Daniel J. Lloveras
 """
 
 import numpy as np
