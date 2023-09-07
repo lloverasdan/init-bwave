@@ -53,7 +53,7 @@ moist = True # moisture option
 rh_0 = 0.85 # surface relative humidity
 zrh = 8000. # height decay scale in m
 delta = 1.25 # height decay parameter
-nit = 5 # number of iterations for virtual temperature calculation
+nit = 11 # number of iterations for virtual temperature calculation
 
 ### Read in the file
 nc_in = Dataset('wrfin_path_here','r+')
