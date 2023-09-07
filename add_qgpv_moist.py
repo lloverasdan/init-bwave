@@ -197,7 +197,7 @@ if moist:
         temp = theta_new[it,:,:,:]*((p + pb)/P0)**(RD/CP)
         es = 611.2*np.exp(17.67*(temp - SVPT0)/(temp - 29.65))
         qv = rh*(RD/RV)*(es/((p + pb) - es))
-        theta_new[it+1,:,:,:] = (t + T0)/(1 + 0.61*qv)
+        theta_new[it+1,:,:,:] = (t + T0)/(1 + (RV/RD)*qv)
 
     t_moist = theta_new[nit-1,:,:,:] - T0
     tsk_moist = theta_new[nit-1,0,:,:]*(((p + pb)[0,:,:]/P0)**(RD/CP))
