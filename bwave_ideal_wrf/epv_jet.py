@@ -150,6 +150,7 @@ def interp_0(v_in, z_in, z_val, nz_in):
     return v_val
 
 ### Increasing grid values
+
 @njit    
 def interp_increasing(x_in, x_out, y_in, n_in, n_out):
     
@@ -178,6 +179,7 @@ def interp_increasing(x_in, x_out, y_in, n_in, n_out):
     return y_out
 
 ### Decreasing grid values
+
 @njit    
 def interp_decreasing(x_in, x_out, y_in, n_in, n_out):
     
@@ -212,10 +214,10 @@ def theta_top(ly, ny, dy, dyth, thtop, dth):
 
     thtopline = np.zeros(ny)
     for j in range(ny):
-        a2 = 1.5*(j*dy - ly/2.)/dyth
-        if (np.abs(a2) < np.pi/2.):
-            thtopline[j] = thtop + dth*np.sin(a2)
-        elif (a2 > np.pi/2.):
+        a = 1.5*(j*dy - ly/2.)/dyth
+        if (np.abs(a) < np.pi/2.):
+            thtopline[j] = thtop + dth*np.sin(a)
+        elif (a > np.pi/2.):
             thtopline[j] = thtop + dth
         else:
             thtopline[j] = thtop - dth
@@ -225,28 +227,28 @@ def theta_top(ly, ny, dy, dyth, thtop, dth):
 #%% Phi at bottom of atmosphere
     
 @njit
-def phi_bot(ly, ny, dy, dyph, phbot, dph, shear_type):
+def phi_bot(ly, ny, dy, dyph, dph, shear_type):
 
-    if shear_type == 'cyc':
+    if shear_type == 'surf_cyc':
         phbotline = np.zeros(ny)
         for j in range(ny):
-            a3 = 1.5*(j*dy - ly/2.)/dyph
-            if (np.abs(a3) < np.pi):
-                phbotline[j] = phbot - dph*np.cos(a3)
+            a = 1.5*(j*dy - ly/2.)/dyph
+            if (np.abs(a) < np.pi):
+                phbotline[j] = -dph*np.cos(a) + dph
             else:
-                phbotline[j] = phbot + dph
+                phbotline[j] = 2*dph
 
-    elif shear_type == 'anticyc':
+    elif shear_type == 'surf_anticyc':
         phbotline = np.zeros(ny)
         for j in range(ny):
-            a3 = 1.5*(j*dy - ly/2.)/dyph
-            if (np.abs(a3) < np.pi):
-                phbotline[j] = phbot + dph*np.cos(a3)
+            a = 1.5*(j*dy - ly/2.)/dyph
+            if (np.abs(a) < np.pi):
+                phbotline[j] = dph*np.cos(a) - dph
             else:
-                phbotline[j] = phbot - dph           
+                phbotline[j] = -2*dph           
                 
     else:
-        phbotline = np.ones(ny)*phbot
+        phbotline = np.zeros(ny)
         
     return phbotline
 
@@ -257,10 +259,10 @@ def trop_shape(ly, ny, dy, dytr, pim, dpitr):
     
     pitp = np.zeros(ny)
     for j in range(ny):
-        a1 = 2.*(j*dy - ly/2.)/dytr
-        if (np.abs(a1) <= np.pi/2.):
-            pitp[j] = pim + dpitr*np.sin(a1)
-        elif (a1 > np.pi/2.):
+        a = 2.*(j*dy - ly/2.)/dytr
+        if (np.abs(a) <= np.pi/2.):
+            pitp[j] = pim + dpitr*np.sin(a)
+        elif (a > np.pi/2.):
             pitp[j] = pim + dpitr
         else:
             pitp[j] = pim - dpitr
@@ -362,14 +364,14 @@ def pv_calc(f, ny, dy, npi, dpi, pibot):
 @njit    
 def solve_PV_inversion(ly, ny, dy, dytr, pim, dpitr, pvt, pvs, dpipv, npi, \
                        pibot, pitop, dpi, dyth, thtop, dth, f, om, nit, \
-                       dyph, phbot, dph, shear_type):
+                       dyph, dph, shear_type):
     
     ### Compute tropopause shape, PV distribution, and top theta
     pitp = trop_shape(ly, ny, dy, dytr, pim, dpitr)
     pv = pv_dist(pvt, pvs, dpipv, ny, npi, pibot, pitop, dpi, pitp)
         
     thtopline = theta_top(ly, ny, dy, dyth, thtop, dth)
-    phbotline = phi_bot(ly, ny, dy, dyph, phbot, dph, shear_type)
+    phbotline = phi_bot(ly, ny, dy, dyph, dph, shear_type)
     
     ### Run PV inversion iterations and apply boundary conditions  
     for i in range(nit):
@@ -385,6 +387,63 @@ def solve_PV_inversion(ly, ny, dy, dytr, pim, dpitr, pvt, pvs, dpipv, npi, \
     pv_out = pv_calc(f, ny, dy, npi, dpi, pibot)
     
     return pv, f, u, theta, pv_out
+
+#%% Barotropic shear
+
+@njit
+def barotropic_shear(u, ph, ly, ny, npi, dy, dpi, c, dyu, shear_type):
+
+    ### Compute perturbation wind
+    if shear_type == 'baro_cyc':
+        u_shear = np.zeros(ny)
+        for i in range(ny):
+            a = 1.5*(i*dy - ly/2.)/dyu
+            if (np.abs(a) < np.pi/2.):
+                u_shear[i] = -c*np.sin(a)
+            elif (a > np.pi/2.):
+                u_shear[i] = -c
+            else:
+                u_shear[i] = c
+
+    elif shear_type == 'baro_anticyc':
+        u_shear = np.zeros(ny)
+        for i in range(ny):
+            a = 1.5*(i*dy - ly/2.)/dyu
+            if (np.abs(a) < np.pi/2.):
+                u_shear[i] = c*np.sin(a)
+            elif (a > np.pi/2.):
+                u_shear[i] = c
+            else:
+                u_shear[i] = -c        
+
+    else:
+        u_shear = np.zeros(ny)
+
+    ### Add shear to full wind
+    u_out = np.zeros((npi,ny))
+    for k in range(npi):
+        u_out[k,:] = u[k,:] + u_shear
+
+    ### Integrate geostrophically to obtain geopotential increment
+    ph_inc = np.zeros(ny)
+    ph_y = 0.
+    for i in range(int(ny/2. + 1)):
+        ph_y = +F0*u_out[0,int(ny/2. - i)]*dy + ph_y
+        ph_inc[int(ny/2. - i)] = ph_y
+
+    ph_y = 0.
+    for i in range(int(ny/2.),ny):
+        ph_y = -F0*u_out[0,i]*dy + ph_y
+        ph_inc[i] = ph_y
+
+    ### Add increment to full geopotential
+    ph_out = np.zeros((npi,ny))
+    for k in range(npi):
+        ph_out[k,:] = ph[k,:] + ph_inc
+            
+    return u_out, ph_out
+
+#%% Base fields in WRF
 
 @njit
 def base_wrf(ph_in, p_in, theta_in, p_bot, p_top, nx, ny, nz, znu, znw, dn, dnw):
@@ -412,6 +471,8 @@ def base_wrf(ph_in, p_in, theta_in, p_bot, p_top, nx, ny, nz, znu, znw, dn, dnw)
                 phb[k,j,i] = phb[k-1,j,i] - dnw[k-1]*mub[j,i]*alb[k-1,j,i]
     
     return mub, pb, t_init, alb, phb
+
+#%% Perturbation fields in WRF
 
 @njit
 def pert_wrf(u_in, v_in, ph_in, p_in, theta_in, pb, alb, mub, p_bot, p_top, nx, ny, nz, znu, znw, dn, dnw):
