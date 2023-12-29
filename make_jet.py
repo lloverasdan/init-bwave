@@ -51,11 +51,18 @@ dpipv = 15. # tropopause depth in pi over which strongest PV change occurs
 thtop = 535. # mean top potential temperature in K
 dth = 10. # max displacement from mean top potential temperature in K
 dyth = 1.0e6 # meridional scale for top potential temperature transition in m
-dytr = 5.0e5  # meridional scale for tropopause height transition in m
-shear_type = 'none' # shear option, none or cyc or anticyc
-phbot = 0. # reference phi at pi_bot in m^2/s^2
-dph = 750. # max displacement from phi at pi_bot in m^2/s^2, for shear cases only
-dyph = 1.0e6 # meridional scale for phi_bot transition in m, for shear cases only
+dytr = 1.0e6  # meridional scale for tropopause height transition in m
+
+### Horizontal shear option
+shear_type = 'none' # choices are baro_cyc, baro_anticyc, surf_cyc, surf_anticyc
+
+### Barotropic shear parameters
+c = 10. # maximum additional wind speed in m/s
+dyu = 1.0e6 # meridional scale for shear transition in m
+
+### Surface-based shear parameters
+dph = 750. # half displacement from bottom phi in m^2/s^2
+dyph = 1.0e6 # meridional scale for bottom phi transition in m
 
 ### Set up grids
 ny_h = ny
@@ -69,7 +76,7 @@ znw, znu, dnw, rdnw, dn, rdn, fnp, fnm, cof1, cof2, cf1,\
 f_l = np.zeros((npi_l,ny_l))
 pv_l, f_l, u_l, theta_l, pv_out_l = epv_jet.solve_PV_inversion(ly, ny_l, \
     dy_l, dytr, pim, dpitr, pvt, pvs, dpipv, npi_l, pibot, pitop, dpi_l, \
-    dyth, thtop, dth, f_l, om, nit, dyph, phbot, dph, shear_type)
+    dyth, thtop, dth, f_l, om, nit, dyph, dph, shear_type)
 
 ### Interpolate onto high-resolution grid
 f_temp = np.zeros((npi_h,ny_l))
@@ -83,7 +90,11 @@ for k in range(npi_h):
 ### High-resolution run
 pv_h, f_h, u_h, theta_h, pv_out_h = epv_jet.solve_PV_inversion(ly, ny_h, \
     dy_h, dytr, pim, dpitr, pvt, pvs, dpipv, npi_h, pibot, pitop, dpi_h, \
-    dyth, thtop, dth, f_interp, om, nit, dyph, phbot, dph, shear_type)
+    dyth, thtop, dth, f_interp, om, nit, dyph, dph, shear_type)
+
+### Barotropic shear
+if shear_type == 'baro_cyc' or shear_type == 'baro_anticyc':
+    u_h, f_h = epv_jet.barotropic_shear(u_h, f_h, ly, ny_h, npi_h, dy_h, dpi_h, c, dyu, shear_type)
 
 ### Unstaggered pressure for WRF levels
 p_unstag = znu*(p_bot - p_top) + p_top
@@ -100,22 +111,34 @@ for j in range(ny):
     p_eta[:,j] = p_unstag
     
 ### Bottom and top pressure for shear cases
-p_bot_inc = np.zeros(ny)
-p_top_inc = np.zeros(ny)
-if shear_type == 'anticyc' or shear_type == 'cyc':
+if shear_type == 'baro_cyc' or shear_type == 'baro_anticyc' or shear_type == 'surf_cyc' or shear_type == 'surf_anticyc':
+    p_bot_inc = np.zeros(ny)
+    p_top_inc = np.zeros(ny)
     rho_eta = P0/(RD*theta_eta)*(p_eta/P0)**(CV/CP)
     u_bot = 1.5*u_eta[0,:] - 0.5*u_eta[1,:]
     u_top = 1.5*u_eta[-1,:] - 0.5*u_eta[-2,:]
     rho_bot = 1.5*rho_eta[0,:] - 0.5*rho_eta[1,:]
     rho_top = 1.5*rho_eta[-1,:] - 0.5*rho_eta[-2,:]
-    for j in range(1,ny-1):
-        p_bot_inc[j] = p_bot_inc[j-1] - hres*1000.*u_bot[j]*rho_bot[j]*F0
-        p_top_inc[j] = p_top_inc[j-1] - hres*1000.*u_top[j]*rho_top[j]*F0
 
-    p_bot_inc[0] = p_bot_inc[1]
-    p_bot_inc[-1] = p_bot_inc[-2]
-    p_top_inc[0] = p_top_inc[1]
-    p_top_inc[-1] = p_top_inc[-2]
+    pb_y = p_bot
+    pt_y = p_top
+    for i in range(int(ny/2. + 1)):
+        pb_y = +F0*u_bot[int(ny/2. - i)]*rho_bot[int(ny/2. - i)]*hres*1000. + pb_y
+        p_bot_inc[int(ny/2. - i)] = pb_y
+        pt_y = +F0*u_top[int(ny/2. - i)]*rho_top[int(ny/2. - i)]*hres*1000. + pt_y
+        p_top_inc[int(ny/2. - i)] = pt_y
+
+    pb_y = p_bot
+    pt_y = p_top
+    for i in range(int(ny/2.),ny):
+        pb_y = -F0*u_bot[i]*rho_bot[i]*hres*1000. + pb_y
+        p_bot_inc[i] = pb_y
+        pt_y = -F0*u_top[i]*rho_top[i]*hres*1000. + pt_y
+        p_top_inc[i] = pt_y
+        
+else:
+    p_bot_inc = np.ones(ny)*p_bot
+    p_top_inc = np.ones(ny)*p_top
     
 ### Extend into x
 u_jet = np.zeros((nz,ny,nx))
@@ -131,8 +154,8 @@ for i in range(nx):
     theta_jet[:,:,i] = theta_eta
     ph_jet[:,:,i] = ph_eta
     p_jet[:,:,i] = p_eta
-    pbot[:,i] = p_bot_inc + p_bot
-    ptop[:,i] = p_top_inc + p_top
+    pbot[:,i] = p_bot_inc
+    ptop[:,i] = p_top_inc
 
 ### Compute WRF base variables
 qv = np.zeros((nz,ny,nx))
@@ -144,7 +167,6 @@ u, v, ph, p, mu, t, tsk = epv_jet.pert_wrf(u_jet, v_jet, ph_jet, p_jet, theta_je
                                            pb, alb, mub, pbot, ptop, nx, ny, nz, \
                                            znu, znw, dn, dnw)
 
-### Write the file
 hres_m = hres*1000.
 ncfile = nc.Dataset(file_name,'w',format=netcdf_type)
 ncfile = write_wrfinputd01.write(ncfile, nx, ny, nz, hres_m, title_str, \
