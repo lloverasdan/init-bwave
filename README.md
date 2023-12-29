@@ -2,6 +2,7 @@
 
 ### Step 1: Download and compile the numerical model
 * WRF version 3.6.1: https://www2.mmm.ucar.edu/wrf/users/download/get_sources.html
+* Code not currently compatible with other WRF versions
 
 ### Step 2: Zonally uniform jet
 * Run "make_jet.py" with parameter options at beginning of script
